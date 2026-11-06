@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block header %}Posições de Estoque{% endblock %}
+{% block body %}
+<section class="card">
+  <h2>Cadastrar nova posição</h2>
+  <form method="post" class="grid-form">
+    <label>Corredor <input name="corredor" required placeholder="Ex: A"></label>
+    <label>Prateleira <input name="prateleira" required placeholder="Ex: 04"></label>
+    <label>Descrição (opcional) <input name="descricao" placeholder="Ex: Corredor de eletrônicos"></label>
+    <div class="form-actions"><button type="submit">Adicionar Posição</button></div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Mapa da Loja ({{ posicoes|length }})</h2>
+  {% if posicoes %}
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Corredor</th><th>Prateleira</th><th>Descrição</th><th>Ações</th></tr>
+    </thead>
+    <tbody>
+    {% for pos in posicoes %}
+      <tr>
+        <td class="mono">{{ pos.id }}</td>
+        <td><span class="badge ok" style="background: rgba(4,138,191,.15); color: #048ABF;">C{{ pos.corredor }}</span></td>
+        <td><span class="badge ok" style="background: rgba(185,191,4,.15); color: #7a7e02;">P{{ pos.prateleira }}</span></td>
+        <td class="muted">{{ pos.descricao or "—" }}</td>
+        <td>
+          <!-- Passa o ID, o nome e os itens (em JSON) para o Modal -->
+          <button class="ghost-btn" onclick='abrirModalPosicao({{ pos.id }}, "C{{ pos.corredor }} - P{{ pos.prateleira }}", {{ pos.itens | tojson }})'>Gerenciar</button>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">Nenhuma posição cadastrada. Crie a primeira acima.</p>
+  {% endif %}
+</section>
+
+<!-- MODAL DE GERENCIAMENTO DA POSIÇÃO -->
+<div id="modalPosicao" class="modal-overlay" style="display: none;">
+  <div class="modal-content" style="max-width: 600px;">
+    <div class="modal-header">
+      <h2 id="modalPosTitulo">Gerenciar Posição</h2>
+      <button type="button" class="modal-close" onclick="fecharModalPosicao()">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- Lista de Produtos na Posição -->
+      <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--c-blue);">Produtos nesta posição:</h3>
+      <div id="listaItens" style="margin-bottom: 20px;">
+        <!-- Preenchido via JS -->
+      </div>
+
+      <!-- Área de Exclusão da Posição -->
+      <div id="areaExclusao" style="border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px; display: flex; justify-content: flex-end;">
+        <form id="formExcluirPosicao" method="post" action="">
+          <input type="hidden" name="acao" value="excluir">
+          <button type="submit" class="ghost-danger" style="border: 1px solid var(--err); padding: 8px 16px; border-radius: 4px;" onclick="return confirm('Tem certeza que deseja excluir esta posição?');">Excluir Posição</button>
+        </form>
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button type="button" class="ghost-btn" onclick="fecharModalPosicao()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function abrirModalPosicao(posId, posNome, itens) {
+    document.getElementById('modalPosTitulo').innerText = 'Gerenciar: ' + posNome;
+    
+    // Configura a URL do form de exclusão
+    document.getElementById('formExcluirPosicao').action = '/posicoes/' + posId + '/gerenciar';
+
+    const lista = document.getElementById('listaItens');
+    const areaExclusao = document.getElementById('areaExclusao');
+    lista.innerHTML = '';
+
+    if (itens && itens.length > 0) {
+      // A posição tem itens. Lista e mostra opção de transferir.
+      itens.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item-posicao';
+        
+        // Formulário individual de transferência para cada produto
+        div.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: #fdfbf7; padding: 10px; border-radius: 6px; border: 1px solid #eee; margin-bottom: 8px;">
+            <div style="flex: 1;">
+              <strong style="display: block; font-size: 14px; margin-bottom: 2px;">${item.nome}</strong>
+              <span style="font-size: 12px; color: #777;">SKU: ${item.sku} | Qtd: ${item.quantidade} un.</span>
+            </div>
+            
+            <form method="post" action="/posicoes/${posId}/gerenciar" style="display: flex; gap: 5px; align-items: center;">
+              <input type="hidden" name="acao" value="transferir">
+              <input type="hidden" name="produto_id" value="${item.produto_id}">
+              
+              <input type="number" name="quantidade" min="1" max="${item.quantidade}" value="${item.quantidade}" style="width: 60px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;" title="Qtd a transferir">
+              
+              <select name="destino_id" required style="padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+                <option value="">Mover para...</option>
+                {% for p in posicoes %}
+                  <option value="{{ p.id }}">C{{ p.corredor }}-P{{ p.prateleira }}</option>
+                {% endfor %}
+              </select>
+              
+              <button type="submit" class="btn-mover" style="padding: 6px 12px; font-size: 12px;">Mover</button>
+            </form>
+          </div>
+        `;
+        lista.appendChild(div);
+      });
+      
+      // Se tem itens, bloqueia o botão de excluir
+      areaExclusao.style.display = 'flex';
+      areaExclusao.querySelector('button').disabled = true;
+      areaExclusao.querySelector('button').style.opacity = '0.5';
+      areaExclusao.querySelector('button').style.cursor = 'not-allowed';
+      areaExclusao.querySelector('button').title = "A posição só pode ser excluída se estiver vazia.";
+      
+    } else {
+      // Posição vazia
+      lista.innerHTML = '<p class="muted" style="font-size: 13px;">Nenhum produto alocado nesta posição.</p>';
+      
+      // Habilita o botão de excluir
+      areaExclusao.style.display = 'flex';
+      areaExclusao.querySelector('button').disabled = false;
+      areaExclusao.querySelector('button').style.opacity = '1';
+      areaExclusao.querySelector('button').style.cursor = 'pointer';
+      areaExclusao.querySelector('button').title = "Excluir posição vazia";
+    }
+
+    document.getElementById('modalPosicao').style.display = 'flex';
+  }
+
+  function fecharModalPosicao() {
+    document.getElementById('modalPosicao').style.display = 'none';
+  }
+
+  document.getElementById('modalPosicao').addEventListener('click', function(e) {
+    if (e.target === this) {
+      fecharModalPosicao();
+    }
+  });
+</script>
+{% endblock %}

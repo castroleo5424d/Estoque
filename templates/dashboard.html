@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block header %}Consulta{% endblock %}
+{% block body %}
+<div class="search-hero" style="{% if busca %}margin-top: 20px; flex: none;{% endif %}">
+  <form method="get" action="{{ url_for('dashboard') }}" class="search-bar">
+    <input type="text" name="q" value="{{ busca }}" placeholder="Digite o nome ou o código (SKU) do produto..." autofocus>
+    <button type="submit">Buscar</button>
+  </form>
+</div>
+
+{% if busca %}
+<section class="card" style="max-width: 1000px;">
+  <h2>Resultados para "{{ busca }}"</h2>
+  {% if resultados %}
+    <div class="resultados-grid">
+    {% for p in resultados %}
+      <div class="produto-cartao {{ 'borda-baixa' if p.total <= p.estoque_minimo else '' }}">
+        
+        <div class="cartao-header">
+          <div>
+            <span class="mono muted">{{ p.sku }}</span>
+            <h3>{{ p.nome }}</h3>
+            <div class="cartao-meta">{{ p.categoria }}</div>
+          </div>
+          <div class="cartao-qtd">
+            <span class="numero">{{ p.total }}</span>
+            <span class="label">Total</span>
+          </div>
+        </div>
+
+        <div class="lotes-lista">
+          <strong>Onde estão:</strong>
+          {% if p.lotes %}
+            {% for lote in p.lotes %}
+              <div class="lote-item">
+                <span>C{{ lote.corredor }} - P{{ lote.prateleira }}</span>
+                <span class="badge ok">{{ lote.quantidade }} un.</span>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="muted" style="font-size: 12px; margin: 5px 0;">Sem estoque alocado em posições.</p>
+          {% endif %}
+        </div>
+
+        <div class="cartao-acoes">
+          <form method="post" class="acao-form acao-transferir" style="flex-direction: column; gap: 8px;">
+            <input type="hidden" name="acao" value="transferir">
+            <input type="hidden" name="produto_id" value="{{ p.id }}">
+            <input type="hidden" name="busca_atual" value="{{ busca }}">
+            
+            {% if p.lotes %}
+            <div style="display: flex; gap: 8px; width: 100%;">
+              <select name="origem_id" required style="flex: 1;">
+                <option value="">De (Origem)...</option>
+                {% for lote in p.lotes %}
+                  <option value="{{ lote.id }}">C{{ lote.corredor }}-P{{ lote.prateleira }} ({{ lote.quantidade }} un)</option>
+                {% endfor %}
+              </select>
+              <input type="number" name="quantidade" min="1" value="1" required style="width: 60px;" title="Qtd a transferir">
+            </div>
+            
+            <div style="display: flex; gap: 8px; width: 100%;">
+              <select name="destino_id" required style="flex: 1;">
+                <option value="">Para (Destino)...</option>
+                {% for pos in posicoes %}
+                  <option value="{{ pos.id }}">C{{ pos.corredor }}-P{{ pos.prateleira }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn-mover" style="flex: 0;">Transferir</button>
+            </div>
+            {% else %}
+            <p class="muted" style="font-size: 12px;">Não há itens para transferir (estoque zerado).</p>
+            {% endif %}
+          </form>
+        </div>
+
+      </div>
+    {% endfor %}
+    </div>
+  {% else %}
+  <p class="empty">Nenhum produto encontrado com esse termo.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

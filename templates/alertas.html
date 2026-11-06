@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block header %}Alertas de Estoque{% endblock %}
+{% block body %}
+<section class="card">
+  <h2>Produtos abaixo do mínimo</h2>
+  {% if produtos %}
+  <table>
+    <thead>
+      <tr><th>SKU</th><th>Produto</th><th>Qtd Atual</th><th>Mínimo</th><th>Déficit</th></tr>
+    </thead>
+    <tbody>
+    {% for p in produtos %}
+      <tr class="row-warn">
+        <td class="mono">{{ p.sku }}</td>
+        <td>{{ p.nome }}</td>
+        <td class="mono fw-bold">{{ p.total }}</td>
+        <td class="mono">{{ p.estoque_minimo }}</td>
+        <td class="mono" style="color: var(--err); font-weight: bold;">{{ p.estoque_minimo - p.total }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">Nenhum produto abaixo do estoque mínimo.</p>
+  {% endif %}
+</section>
+{% endblock %}

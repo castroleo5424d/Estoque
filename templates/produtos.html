@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block header %}Produtos{% endblock %}
+{% block body %}
+<section class="card">
+  <form method="get" class="search">
+    <input type="text" name="q" value="{{ busca }}" placeholder="Buscar por nome, SKU ou categoria...">
+    <button type="submit">Buscar</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Cadastrar produto</h2>
+  <form method="post" class="grid-form">
+    <label>SKU <input name="sku" required></label>
+    <label>Nome <input name="nome" required></label>
+    <label>Categoria <input name="categoria" required></label>
+    <label>Preço (R$) <input name="preco" type="number" step="0.01" min="0" required></label>
+    <label>Estoque mínimo <input name="estoque_minimo" type="number" min="0" value="5" required></label>
+    
+    <label>Posição Inicial (opcional)
+      <select name="posicao_id">
+        <option value="">-- Não alocar ainda --</option>
+        {% for pos in posicoes %}
+          <option value="{{ pos.id }}">C{{ pos.corredor }} - P{{ pos.prateleira }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Qtd Inicial
+      <input name="quantidade" type="number" min="0" value="0">
+    </label>
+    
+    <div class="form-actions"><button type="submit">Adicionar</button></div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Lista ({{ produtos|length }})</h2>
+  {% if produtos %}
+  <table>
+    <thead>
+      <tr><th>SKU</th><th>Nome</th><th>Categoria</th><th>Qtd Total</th><th>Status</th><th>Ações</th></tr>
+    </thead>
+    <tbody>
+    {% for p in produtos %}
+      <tr class="{{ 'row-warn' if p.total <= p.estoque_minimo else '' }}">
+        <td class="mono">{{ p.sku }}</td>
+        <td>{{ p.nome }}</td>
+        <td>{{ p.categoria }}</td>
+        <td class="mono fw-bold">{{ p.total }}</td>
+        <td>
+          {% if p.total <= p.estoque_minimo %}
+            <span class="badge warn">baixo</span>
+          {% else %}
+            <span class="badge ok">ok</span>
+          {% endif %}
+        </td>
+        <td>
+          <button type="button" class="ghost-btn" onclick='abrirModal({{ p.id }}, "{{ p.nome | e }}", {{ p.total }}, {{ p.lotes | tojson | safe }})'>Editar</button>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">Nenhum produto encontrado.</p>
+  {% endif %}
+</section>
+
+<!-- MODAL DE EDIÇÃO -->
+<div id="modalEdicao" class="modal-overlay" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modalTitulo">Editar Produto</h2>
+      <button type="button" class="modal-close" onclick="fecharModal()">&times;</button>
+    </div>
+    
+    <form id="formEdicao" method="post" action="">
+      <div class="modal-body">
+        <p class="muted" style="margin-bottom: 20px;">Escolha a posição e a quantidade para adicionar ou remover do estoque.</p>
+        
+        <label>Posição</label>
+        <select name="posicao_id" id="selectPosicoes" required style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ccc;">
+          <!-- Opções geradas via JS -->
+        </select>
+
+        <label>Quantidade</label>
+        <input type="number" name="quantidade" min="1" required style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ccc;">
+
+        <label>Ação</label>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <label style="flex: 1; display: flex; align-items: center; gap: 5px;">
+            <input type="radio" name="acao" value="adicionar" checked> Adicionar (+)
+          </label>
+          <label style="flex: 1; display: flex; align-items: center; gap: 5px;">
+            <input type="radio" name="acao" value="remover"> Remover (-)
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <div>
+          <!-- Botão usa o atributo form="formExcluir", mas o form em si fica escondido lá embaixo -->
+          <button type="submit" form="formExcluir" id="btnExcluir" class="ghost-danger" style="border: 1px solid var(--err); padding: 8px 16px; border-radius: 4px; opacity: 0.5; cursor: not-allowed;" disabled>Excluir Produto</button>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="ghost-btn" onclick="fecharModal()">Cancelar</button>
+          <button type="submit" class="btn-salvar">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Formulário de exclusão isolado (fora do modal para não dar conflito) -->
+<form id="formExcluir" method="post" action="" onsubmit="return confirm('Tem certeza que deseja excluir este produto permanentemente?');" style="display: none;"></form>
+
+<script>
+  const opcoesTodasPosicoes = `{% for pos in posicoes %}<option value="{{ pos.id }}">C{{ pos.corredor }} - P{{ pos.prateleira }}</option>{% endfor %}`;
+
+  function abrirModal(produtoId, produtoNome, produtoTotal, lotes) {
+    document.getElementById('modalTitulo').innerText = 'Editar: ' + produtoNome;
+    
+    document.getElementById('formEdicao').action = '/produtos/' + produtoId + '/editar';
+    document.getElementById('formExcluir').action = '/produtos/' + produtoId + '/excluir';
+    
+    const btnExcluir = document.getElementById('btnExcluir');
+    if (produtoTotal > 0) {
+      btnExcluir.disabled = true;
+      btnExcluir.style.opacity = '0.5';
+      btnExcluir.style.cursor = 'not-allowed';
+      btnExcluir.title = "O produto tem " + produtoTotal + " itens em estoque. Zere o estoque antes de excluir.";
+    } else {
+      btnExcluir.disabled = false;
+      btnExcluir.style.opacity = '1';
+      btnExcluir.style.cursor = 'pointer';
+      btnExcluir.title = "Excluir produto permanentemente.";
+    }
+    
+    const select = document.getElementById('selectPosicoes');
+    select.innerHTML = '';
+
+    if (lotes && lotes.length > 0) {
+      lotes.forEach(lote => {
+        const option = document.createElement('option');
+        option.value = lote.id;
+        option.text = 'C' + lote.corredor + ' - P' + lote.prateleira + ' (' + lote.quantidade + ' un)';
+        select.appendChild(option);
+      });
+    } else {
+      select.innerHTML = opcoesTodasPosicoes;
+    }
+
+    document.getElementById('modalEdicao').style.display = 'flex';
+  }
+
+  function fecharModal() {
+    document.getElementById('modalEdicao').style.display = 'none';
+  }
+
+  document.getElementById('modalEdicao').addEventListener('click', function(e) {
+    if (e.target === this) {
+      fecharModal();
+    }
+  });
+</script>
+{% endblock %}

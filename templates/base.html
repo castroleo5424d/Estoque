@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Stock Manager Fiori{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="shell">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="brand-mark">◆</span>
+      <div>
+        <div class="brand-name">Stock Manager</div>
+        <div class="brand-sub">Fiori Edition</div>
+      </div>
+    </div>
+    <nav>
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint=='dashboard' else '' }}">Visão Geral</a>
+      <a href="{{ url_for('produtos') }}" class="{{ 'active' if request.endpoint=='produtos' else '' }}">Produtos</a>
+      <a href="{{ url_for('posicoes') }}" class="{{ 'active' if request.endpoint=='posicoes' else '' }}">Posições</a>
+    </nav>
+    <div class="sidebar-foot">v1.0 · SQLite local</div>
+  </aside>
+
+  <!-- Overlay para fechar o menu -->
+  <div class="overlay" id="overlay"></div>
+
+  <main class="content">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" id="hamburger" aria-label="Abrir menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <h1>{% block header %}{% endblock %}</h1>
+      </div>
+      
+      <div class="topbar-right">
+        <a href="{{ url_for('alertas') }}" class="alerta-btn" title="Ver alertas de estoque">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          {% if alertas_count > 0 %}
+            <span class="alerta-badge">{{ alertas_count }}</span>
+          {% endif %}
+        </a>
+
+        <img src="{{ url_for('static', filename='imagem/logo.svg') }}" alt="Logo" class="topbar-logo">
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <!-- O bloco body aparece UMA VEZ SÓ, aqui -->
+    {% block body %}{% endblock %}
+  </main>
+</div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

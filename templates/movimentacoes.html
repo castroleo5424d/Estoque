@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block header %}Movimentações{% endblock %}
+{% block body %}
+<section class="card">
+  <h2>Registrar operação</h2>
+  <form method="post" class="grid-form">
+    <label>Produto
+      <select name="produto_id" required>
+        {% for p in produtos %}
+          <option value="{{ p.id }}">{{ p.sku }} — {{ p.nome }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    
+    <label>Operação
+      <select name="tipo">
+        <option value="entrada">Entrada (Somar)</option>
+        <option value="saida">Saída (Subtrair)</option>
+      </select>
+    </label>
+    
+    <label>Quantidade
+      <input name="quantidade" type="number" min="0" value="0" placeholder="Deixe 0 se for só transferir">
+    </label>
+
+    <label>Nova Localização (opcional)
+      <select name="nova_posicao_id">
+        <option value="">-- Manter atual --</option>
+        {% for pos in posicoes %}
+          <option value="{{ pos.id }}">Corredor {{ pos.corredor }} - Prateleira {{ pos.prateleira }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Observação <input name="observacao" placeholder="Ex: Reabastecimento"></label>
+    
+    <div class="form-actions"><button type="submit">Registrar</button></div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Histórico (últimas 100)</h2>
+  {% if movs %}
+  <table>
+    <thead><tr><th>Data</th><th>SKU</th><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Obs.</th></tr></thead>
+    <tbody>
+    {% for m in movs %}
+      <tr>
+        <td class="mono">{{ m.data }}</td>
+        <td class="mono">{{ m.sku }}</td>
+        <td>{{ m.nome }}</td>
+        <td><span class="badge {{ m.tipo }}">{{ m.tipo }}</span></td>
+        <td class="mono">{{ m.quantidade }}</td>
+        <td class="muted">{{ m.observacao or "—" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">Sem histórico.</p>
+  {% endif %}
+</section>
+{% endblock %}
